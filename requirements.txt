@@ -1,0 +1,18 @@
+# Core
+numpy
+pandas
+opencv-python
+scikit-learn
+matplotlib
+
+# Deep learning (choose one stack)
+torch
+torchvision
+
+# Web demo
+streamlit
+
+# Optional (only if you actually use them)
+# fastapi
+# uvicorn
+# python-multipart

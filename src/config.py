@@ -1,0 +1,14 @@
+"""Central configuration (paths, constants)."""
+
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / 'data'
+RAW_DIR = DATA_DIR / 'raw'
+PROCESSED_DIR = DATA_DIR / 'processed'
+OUTPUTS_DIR = PROJECT_ROOT / 'outputs'
+CHECKPOINTS_DIR = PROJECT_ROOT / 'checkpoints'
+
+# Example defaults
+SEED = 42
+NUM_WORKERS = 4
