@@ -7,6 +7,7 @@ import csv
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from src.data.torch_dataset import KTHClipDataset
 from src.modeling.model_3dcnn import Simple3DCNN
@@ -16,17 +17,17 @@ def accuracy(logits: torch.Tensor, y: torch.Tensor) -> float:
     preds = logits.argmax(dim=1)
     return (preds == y).float().mean().item()
 
-def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
+def run_epoch(model, loader, criterion, optimizer=None, device="cpu",desc: str = "epoch",) -> tuple[float, float]:
     train_mode = optimizer is not None
     model.train(train_mode)
 
     total_loss = 0.0
     total_acc = 0.0
     n_batches = 0
-
-    for X, y in loader:
-        X = X.to(device)
-        y = y.to(device)
+    pbar = tqdm(loader, desc=desc, leave=False)
+    for X, y in pbar:
+        X = X.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
 
         if train_mode:
             optimizer.zero_grad(set_to_none=True)
@@ -37,10 +38,11 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
         if train_mode:
             loss.backward()
             optimizer.step()
-
-        total_loss += loss.item()
-        total_acc += accuracy(logits.detach(), y)
+        batch_acc = accuracy(logits.detach(), y)
+        total_loss += float(loss.item())
+        total_acc += float(batch_acc)
         n_batches += 1
+        pbar.set_postfix(loss=f"{loss.item():.3f}", acc=f"{batch_acc:.3f}")
 
     return total_loss / max(n_batches, 1), total_acc / max(n_batches, 1)
 
@@ -83,8 +85,8 @@ def main():
     best_path = ckpt_dir / "best.pt"
 
     for epoch in range(1, epochs + 1):
-        tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, device=device)
-        va_loss, va_acc = run_epoch(model, val_loader, criterion, optimizer=None, device=device)
+        tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, device=device, desc=f"train {epoch}/{epochs}")
+        va_loss, va_acc = run_epoch(model, val_loader, criterion, optimizer=None, device=device, desc=f"val   {epoch}/{epochs}")
 
         print(f"Epoch {epoch:02d}/{epochs} | "
               f"train loss {tr_loss:.4f} acc {tr_acc:.4f} | "
@@ -131,7 +133,7 @@ def main():
     plt.savefig(fig_path, bbox_inches="tight")
     plt.close()
 
-    print("✅ Saved:")
+    print(" Saved:")
     print(" -", log_path)
     print(" -", fig_path)
     print(" -", best_path)
