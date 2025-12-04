@@ -12,6 +12,8 @@ torchvision
 # Web demo
 streamlit
 
+tqdm
+
 # Optional (only if you actually use them)
 # fastapi
 # uvicorn
