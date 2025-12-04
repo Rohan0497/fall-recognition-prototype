@@ -33,7 +33,7 @@ if __name__ == "__main__":
     val = read_split_file(Path("splits/val.txt"))
     test = read_split_file(Path("splits/test.txt"))
 
-    print("✅ Loaded splits")
+    print("Loaded splits")
     print("train", len(train), "val", len(val), "test", len(test))
     print("example:", train[0])
 
