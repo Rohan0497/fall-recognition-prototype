@@ -183,6 +183,7 @@ def skeleton_to_heatmaps(
     ys = np.arange(-rad, rad + 1)
     gx, gy = np.meshgrid(xs, ys)
     g = np.exp(-(gx**2 + gy**2) / (2 * sigma**2)).astype(np.float32)
+    K = 2 * rad + 1
 
     for t in range(T):
         for j in range(J):
@@ -196,16 +197,25 @@ def skeleton_to_heatmaps(
             x0, y0 = x - rad, y - rad
             x1, y1 = x + rad, y + rad
 
-            # clip to boundaries
-            gx0 = max(0, -x0)
-            gy0 = max(0, -y0)
-            gx1 = (2 * rad + 1) - max(0, x1 - (W - 1))
-            gy1 = (2 * rad + 1) - max(0, y1 - (H - 1))
-
+            # clip to image
             ix0 = max(0, x0)
             iy0 = max(0, y0)
-            ix1 = min(W, x1 + 1)
-            iy1 = min(H, y1 + 1)
+            ix1 = min(W, x1)
+            iy1 = min(H, y1)
+
+            # if completely outside, skip
+            if ix0 >= ix1 or iy0 >= iy1:
+                continue
+
+            # matching window in gaussian space
+            gx0 = ix0 - x0
+            gy0 = iy0 - y0
+            gx1 = gx0 + (ix1 - ix0)
+            gy1 = gy0 + (iy1 - iy0)
+
+            # safety (should always hold)
+            if gx0 < 0 or gy0 < 0 or gx1 > K or gy1 > K:
+                continue
 
             vid[t, iy0:iy1, ix0:ix1] += conf * g[gy0:gy1, gx0:gx1]
 
