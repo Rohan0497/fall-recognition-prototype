@@ -51,10 +51,10 @@ def main() -> None:
         model_folder=MODEL_FOLDER,
         model_pose="COCO",        # J=18
         number_people_max=1,
-        net_resolution="-1x160",  # fits 4GB GPUs better
+        net_resolution="-1x96",  # fits 4GB GPUs better
     )
 
-    out_root = Path("data/processed/openpose_skeletons_coco")
+    out_root = Path("data/processed/openpose_skeletons_coco_r096")
     tmp_json_root = Path(r"C:\op_json_tmp_coco") if args.short_tmp else Path("data/processed/openpose_json_tmp_coco")
 
     out_root.mkdir(parents=True, exist_ok=True)
