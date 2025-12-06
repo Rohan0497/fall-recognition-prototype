@@ -18,7 +18,7 @@ from src.data.openpose_extract import (
 
 @dataclass(frozen=True)
 class SkeletonHeatmapConfig:
-    skeleton_root: Path = Path("data/processed/openpose_skeletons_coco")
+    skeleton_root: Path = Path("data/processed/openpose_skeletons_coco_r096")
     num_frames: int = 32
     size: int = 112
     sigma: float = 2.0

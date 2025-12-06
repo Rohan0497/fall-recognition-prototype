@@ -6,7 +6,7 @@ import torch
 
 from src.data.openpose_extract import resample_time, fill_missing, skeleton_to_heatmaps
 
-SKEL_ROOT = Path("data/processed/openpose_skeletons_coco")
+SKEL_ROOT = Path("data/processed/openpose_skeletons_coco_r096")
 
 
 def normalize_skeleton_generic(skel: np.ndarray) -> np.ndarray:

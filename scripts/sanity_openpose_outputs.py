@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 
-SKEL_ROOT = Path("data/processed/openpose_skeletons_coco")
+SKEL_ROOT = Path("data/processed/openpose_skeletons_coco_r096")
 
 def main():
     if not SKEL_ROOT.exists():
