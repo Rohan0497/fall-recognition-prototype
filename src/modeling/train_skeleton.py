@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import random
 
 from src.data.dataset import read_split_file
 from src.data.torch_skeleton_dataset import KTHOpenPoseHeatmapDataset, SkeletonHeatmapConfig
@@ -71,7 +72,7 @@ class Simple3DCNN(nn.Module):
 # Helpers
 # -------------------------
 @torch.no_grad()
-def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, max_batches: int = 0) -> Tuple[float, np.ndarray, np.ndarray]:
+def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, max_batches: int = 0) -> tuple[float, np.ndarray, np.ndarray]:
     model.eval()
     correct = 0
     total = 0
@@ -171,8 +172,16 @@ def main() -> None:
     parser.add_argument("--strict_train", action="store_true", help="If set, error if train skeleton missing. Default is non-strict.")
     args = parser.parse_args()
 
+    random.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
+    # PyTorch GPU
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
+
+    # Make cuDNN deterministic (reduces run-to-run jitter)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
@@ -205,8 +214,10 @@ def main() -> None:
     class_names = ["boxing", "handclapping", "handwaving", "jogging", "running", "walking"]
 
     model = Simple3DCNN(in_channels=1, num_classes=num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=2)
 
     # Outputs
     out_logs = Path("outputs/logs")
@@ -222,6 +233,10 @@ def main() -> None:
         writer.writerow(["epoch", "train_loss", "train_acc", "val_acc"])
 
     best_val = -1.0
+    ema_beta = 0.9          # smoothing strength (0.9–0.98 typical)
+    ema_val = None          # will hold the running EMA
+    best_ema = -1.0
+
     train_acc_hist = []
     val_acc_hist = []
 
@@ -243,6 +258,7 @@ def main() -> None:
             logits = model(X)
             loss = criterion(logits, y)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
             epoch_loss += float(loss.item()) * y.size(0)
@@ -255,11 +271,22 @@ def main() -> None:
         train_acc = correct / total if total else 0.0
 
         val_acc, _, _ = evaluate(model, val_loader, device, max_batches=args.max_val_batches)
+        # EMA smoothing for reporting
+        if ema_val is None:
+            ema_val = val_acc
+        else:
+            ema_val = ema_beta * ema_val + (1 - ema_beta) * val_acc
+
+        scheduler.step(val_acc)
+
 
         train_acc_hist.append(train_acc)
         val_acc_hist.append(val_acc)
 
-        print(f"Epoch {epoch}: train_loss={train_loss:.4f} train_acc={train_acc:.3f} val_acc={val_acc:.3f}")
+        current_lr = optimizer.param_groups[0]["lr"]
+        print(f"Epoch {epoch} | train_loss={train_loss:.4f} | " 
+              f"train_acc={train_acc:.3f} | val_acc={val_acc:.3f} | "
+              f"ema_val={ema_val:.3f} | lr={current_lr:.1e}")
 
         with open(log_path, "a", newline="") as f:
             writer = csv.writer(f)
